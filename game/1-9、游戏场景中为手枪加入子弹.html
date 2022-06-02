@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>射击小游戏--游戏场景中为手枪加入子弹</title>
+    <script src="../js/three.js" ></script>
+    <script src="../js/WebGL.js" ></script>
+    <script src="../js/MTLLoader.js"></script>
+    <script src="../js/OBJLoader.js"></script>
+</head>
+<script>
+    //箱子材质及纹理相关
+    var box,boxTexture,boxNormalMap,boxBumpMap;
+    var renderer = null;
+    var camera = null;
+    var scene = null;
+    var mesh =null;
+    // 网格索引
+    // multiobj - 00
+    var meshes={};
+    // keyboard-01
+    var keyboard={};
+    var player={height:1.8,speed:0.2,turnSpeed:Math.PI*0.05};
+    //设置gun随机起伏效果 gun-01
+    var time=Date.now()*0.0005;
+    //bullet-01
+    var bullets = [];
+    // multiobj -01
+    // 模型索引
+    var models={
+        female:{
+            obj:"Models/female02.obj",
+            mtl:"Models/female02.mtl",
+            mesh:null
+        } ,
+        zombie:{
+            obj:"Models/zombie.obj",
+            mtl:"Models/zombie.mtl",
+            mesh:null
+        },
+        zombieBlue:{
+            obj:"Models/zombie_blue.obj",
+            mtl:"Models/zombie_blue.mtl",
+            mesh:null
+        },
+        //gun -02
+        //添加武器模型及材质
+        gun:{
+            obj:"Models/gun.obj",
+            mtl:"Models/gun.mtl",
+            mesh:null,
+            castShadow:false
+        }
+    }
+    //  loadingManager -01
+    //创建一个加载管理器
+    var loadingManager=null;
+    //创建下载是否完成的布尔值
+    var Resource_Loaded=false;
+    var loadingScreen = null;
+    //  loadingManager -02
+    // 用于创建第二场景：加载进度场景
+    function createLoadingScreen(){
+        // 创建一个对象，用于存放加载场景所需的所有内容
+        loadingScreen={
+            scene:new THREE.Scene(),
+            camera:new THREE.PerspectiveCamera(90,1280/720,0.1,100),
+            box:new THREE.Mesh(
+                    new THREE.BoxGeometry(1,1,1),
+                    new THREE.MeshBasicMaterial({
+                        color:0x4444ff,
+                        wireframe:true
+                    })
+            )
+        }
+        //  loadingManager -03
+        //设置加载场景对象的一些属性
+        loadingScreen.box.position.set(0,0,5);
+        loadingScreen.camera.lookAt(loadingScreen.box.position);
+        loadingScreen.scene.add(loadingScreen.box);
+
+    }
+    //  loadingManager -04
+    // 创建加载管理器
+    function createLoadingManager(){
+        //实例化加载管理器
+        loadingManager=new THREE.LoadingManager();
+
+        //加载过程
+        loadingManager.onProgress=function(item,loaded,total){
+            console.log(item,loaded,total);
+        }
+        //加载完成
+        loadingManager.onLoad=function() {
+            console.log("已下载所有资源!");
+            Resource_Loaded=true;
+            onResourceLoaded();
+        }
+    }
+    // multiobj -02
+    function onResourceLoaded(){
+          //用于加载其他人物和僵尸
+        // 将模型克隆到网格中
+        meshes["female"]=models.female.mesh.clone();
+        meshes["female2"]=models.female.mesh.clone();
+        meshes["zombie"]=models.zombie.mesh.clone();
+        meshes["zombie2"]=models.zombieBlue.mesh.clone();
+
+        meshes["female"].position.set(-5,0,4);
+        meshes["female"].scale.set(0.03,0.03,0.03);
+        meshes["female"].rotation.y = -Math.PI/1;
+        scene.add (meshes["female"]);
+
+        meshes["female2"].position.set(-8,0,4);
+        meshes["female2"].scale.set(0.03,0.03,0.03);
+        meshes["female2"].rotation.y = -Math.PI/1;
+        scene.add(meshes["female2"]);
+
+        meshes["zombie"].position.set(-5,0,6);
+        meshes["zombie"].scale.set(0.08,0.08,0.08);
+        meshes["zombie"].rotation.y = -Math.PI/1;
+        scene.add (meshes["zombie"]);
+
+        meshes["zombie2"].position.set(-1,0,6);
+        meshes["zombie2"].scale.set(0.08,0.08,0.08);
+        meshes["zombie2"].rotation.y = -Math.PI/1;
+        scene.add(meshes["zombie2"]);
+
+        //gun-03
+        //玩家的武器
+        meshes["gun"]=models.gun.mesh.clone();
+        meshes["gun"].position.set(-1,1,10);
+        meshes["gun"].scale.set(15,15,15);
+        scene.add(meshes["gun"]);
+
+    }
+
+    //初始化渲染器
+    function initThree(){
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        //给渲染器添加阴影效果 add shadow -01
+        renderer.shadowMap.enabled=true;
+        renderer.shadowMap.type=THREE.BasicShadowMap;
+
+        document.body.appendChild(renderer.domElement);
+    }
+
+    // 照像机设置
+    function initCamera(){
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(0,2,-5);
+        camera.lookAt(new THREE.Vector3(0,2,0))
+    }
+
+    // 场景设置
+    function initScene(){
+         scene = new THREE.Scene(); //创建主场景
+        //  loadingManager -05
+        createLoadingScreen(); //创建第一场景
+        createLoadingManager(); //创建场景实例管理器
+    }
+    // 灯光设置
+    function initLight(){
+        //add
+        //环境光
+        var ambientLight=new THREE.AmbientLight(0xffffff,0.5);
+        scene.add(ambientLight);
+        //点光
+        var pointLight=new THREE.PointLight(0xffffff,0.8,18);
+        pointLight.position.set(0,2,0);
+        // add shadow - 02
+        pointLight.castShadow=true;
+        pointLight.shadow.camera.near=0.1;
+        pointLight.shadow.camera.far=25;
+
+        scene.add(pointLight);
+    }
+
+    // 几何体（物体）设置
+    function initObject(){
+        // A物体 ====================================================================
+        var geometry = new THREE.CubeGeometry(1,1,1);
+        var material = new THREE.MeshPhongMaterial({color:0x00ff00,wireframe:false})
+        mesh = new THREE.Mesh(geometry, material);
+        // add shadow - 04
+        mesh.receiveShadow=true;
+        mesh.castShadow=true;
+        mesh.position.y+=1;
+        scene.add(mesh);
+        //============================================================================
+
+        // B 物体 ====================================================================
+        meshfloor=new THREE.Mesh(
+                new THREE.PlaneGeometry(20,20,10,10),
+                new THREE.MeshPhongMaterial({color:0xffffff,wireframe:false})
+        )
+        meshfloor.rotation.x -=Math.PI/2;
+        //add shadow -05
+        meshfloor.receiveShadow=true;
+        scene.add(meshfloor);
+        //=============================================================================
+
+        // C 物体 ======================================================================
+        // 以下为创建箱子及添加纹理的核心代码
+        //加载贴图
+        var textureLoader=new THREE.TextureLoader(loadingManager);
+        boxTexture=textureLoader.load("Img/01.jpg");
+        boxNormalMap=textureLoader.load("Img/02.jpg");
+        boxBumpMap=textureLoader.load("Img/03.jpg");
+        // 创建箱子
+        box=new THREE.Mesh(
+                new THREE.BoxGeometry(3,3,3),
+                new THREE.MeshPhongMaterial({
+                    color:0xffffff,
+                    map:boxTexture,//颜色贴图。默认为null。纹理贴图颜色由漫反射颜色.color调节。
+                    normalMap:boxNormalMap,//用于创建法线贴图的纹理。RGB值会影响每个像素片段的曲面法线，并更改颜色照亮的方式。法线贴图不会改变曲面的实际形状，只会改变光照。
+                    bumpMap:boxBumpMap //用于创建凹凸贴图的纹理。黑色和白色值映射到与光照相关的感知深度。凹凸实际上不会影响对象的几何形状，只影响光照。如果定义了法线贴图，则将忽略该贴图。
+                })
+        )
+        box.position.set(2.5,3/2,2.5);
+        // 设置箱子阴影
+        box.receiveShadow=true;
+        box.castShadow=true;
+
+        scene.add(box)
+        //=============================================================
+        // multiobj -03
+        // 加载模型
+        for(var _key in models){
+            (function(key){
+                //加载模型和材质
+                var mtlLoader=new THREE.MTLLoader(loadingManager);
+                mtlLoader.load(models[key].mtl,function(materials){
+                    materials.preload();
+                    var objLoader=new THREE.OBJLoader(loadingManager);
+                    objLoader.setMaterials(materials);
+                    objLoader.load(models[key].obj,function(mesh){
+                        //给加载的人物模型加上阴影
+                        mesh.traverse(function(node){
+                            if(node instanceof THREE.Mesh){
+                                node.castShadow=true;
+                                node.receiveShadow=true;
+                            }
+                        });
+                        models[key].mesh=mesh;
+                    });
+                });
+            })(_key)
+        }
+    }
+    // 开始渲染
+    function render(){
+
+        //  loadingManager -06
+        // 在加载资源时运行此块代码
+        if(Resource_Loaded==false){
+            loadingScreen.box.position.x-=0.05;
+            if(loadingScreen.box.position.x<-10) loadingScreen.box.position.x=10;
+            loadingScreen.box.position.y=Math.sin(loadingScreen.box.position.x);
+            renderer.render(loadingScreen.scene,loadingScreen.camera);
+        }else{
+            mesh.rotation.x += 0.1;
+            mesh.rotation.y += 0.1;
+            renderer.render(scene, camera);
+            // keyboard-03
+            setKeyboard();
+        }
+
+        requestAnimationFrame(render);
+
+    }
+
+
+    // 设置键盘操作物体移动 // keyboard-02
+    function setKeyboard(){
+        //键盘移动输入
+        if(keyboard[87]){ //W key
+            // Math.sin(x)    x 的正玄值。返回值在 -1.0 到 1.0 之间；
+            // Math.cos(x)    x 的余弦值。返回的是 -1.0 到 1.0 之间的数；
+            camera.position.x-=Math.sin(camera.rotation.y)*player.speed;
+            camera.position.z-=Math.cos(camera.rotation.y)*player.speed;
+            // console.log(camera.rotation.y);
+            // console.log("camera.position.x="+camera.position.x+",camera.position.z="+camera.position.z)
+        }
+        if(keyboard[83]){ //S key
+            camera.position.x+=Math.sin(camera.rotation.y)*player.speed;
+            camera.position.z+=Math.cos(camera.rotation.y)*player.speed;
+        }
+
+        if(keyboard[65]){ //A key
+            camera.position.x+=Math.sin(camera.rotation.y+Math.PI/2)*player.speed;
+            camera.position.z-=Math.cos(camera.rotation.y+Math.PI)*player.speed;
+            console.log(camera.rotation.y);
+            console.log("camera.position.x="+camera.position.x+",camera.position.z="+camera.position.z)
+        }
+
+        if(keyboard[68]){ //D key
+            camera.position.x+=Math.sin(camera.rotation.y-Math
+                    .PI/2)*player.speed;
+            camera.position.z-=Math.cos(camera.rotation.y-Math.PI)*player.speed;
+        }
+
+        if(keyboard[37]) { //左边箭头键
+            camera.rotation.y-=player.turnSpeed;
+        }
+
+        if(keyboard[39]) { //右边箭头键
+            camera.rotation.y+=player.turnSpeed;
+        }
+
+        //bullet-02
+        //射击
+        if(keyboard[32]) { //空格键
+            //创建一个子弹的网格和几何体
+            var bullet =new THREE.Mesh(
+                    new THREE.SphereGeometry(0.05,8,8),
+                    new THREE.MeshBasicMaterial({color:0xfffffff})
+            )
+            //子弹产生的位置
+            bullet.position.set(
+                    meshes["gun"].position.x,
+                    meshes["gun"].position.y+0.025,
+                    meshes["gun"].position.z
+            )
+
+            bullets.push(bullet);
+            scene.add(bullet);
+        }
+
+        //将枪放在相机前面
+        meshes["gun"].position.set(
+                camera.position.x-Math.sin(camera.rotation.y+Math
+                        .PI/6)*0.75,
+                camera.position.y-0.5+Math
+                        .sin(time*4+camera.position.x+camera.position.z)*0.01,
+                camera.position.z+Math
+                        .cos(camera.rotation.y+Math
+                                .PI/6)
+
+        );
+
+        meshes["gun"].rotation.set(
+                camera.rotation.x,
+                camera.rotation.y-Math.PI,
+                camera.rotation.z
+        );
+
+
+    }
+
+
+    // keyboard-04
+    function initKeyBoard(){
+        function keyDown(event){
+            console.log(event.keyCode)
+            keyboard[event.keyCode]=true;
+        }
+
+        function keyUp(event) {
+            keyboard[event.keyCode]=false;
+        }
+        window.addEventListener('keydown',keyDown);
+        window.addEventListener('keyup',keyUp);
+    }
+
+    function threeStart() {
+
+        initThree();     // 初始化渲染器
+        initCamera(); // 照像机设置
+        initScene();    // 场景设置
+        initLight();      // 灯光设置
+        initObject();    // 几何体（物体）设置
+        render();        // 开始渲染
+        // keyboard-05
+        initKeyBoard();
+
+    }
+
+    function start(){
+        if (WEBGL.isWebGLAvailable()) {
+            // Initiate function or other initializations here
+            threeStart();
+        } else {
+            var warning = WEBGL.getWebGLErrorMessage();
+            document.getElementById('container').appendChild(warning);
+        }
+
+    }
+
+</script>
+<body onload="start();">
+<div id="container"></div>
+</body>
+</html>

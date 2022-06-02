@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>eg02: Three.js 旋转的盒子(重构)</title>
+    <script src="../js/three.js" ></script>
+</head>
+<script>
+    var renderer = null;
+    //初始化渲染器
+    function initThree(){
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+    }
+    var camera = null;
+    // 照像机设置
+    function initCamera(){
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.z = 5;
+    }
+    var scene = null;
+    // 场景设置
+    function initScene(){
+         scene = new THREE.Scene();
+    }
+    // 灯光设置
+    function initLight(){
+        //这里暂时可以空着
+    }
+    var cube =null;
+    // 几何体（物体）设置
+    function initObject(){
+        var geometry = new THREE.CubeGeometry(1,1,1);
+        var material = new THREE.MeshBasicMaterial({color: 0x00ff00});
+        cube = new THREE.Mesh(geometry, material);
+        scene.add(cube);
+    }
+    // 开始渲染
+    function render(){
+        requestAnimationFrame(render);
+        cube.rotation.x += 0.1;
+        cube.rotation.y += 0.1;
+        renderer.render(scene, camera);
+    }
+
+    function threeStart() {
+
+        initThree();     // 初始化渲染器
+        initCamera(); // 照像机设置
+        initScene();    // 场景设置
+        initLight();      // 灯光设置
+        initObject();    // 几何体（物体）设置
+        render();        // 开始渲染
+    }
+
+</script>
+<body onload="threeStart();">
+</body>
+</html>

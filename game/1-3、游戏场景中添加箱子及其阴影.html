@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>射击小游戏--场景中添加箱子及其阴影</title>
+    <script src="../js/three.js" ></script>
+    <script src="../js/WebGL.js" ></script>
+</head>
+<script>
+    //箱子材质及纹理相关
+    var box,boxTexture,boxNormalMap,boxBumpMap;
+    var renderer = null;
+    //初始化渲染器
+    function initThree(){
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        //给渲染器添加阴影效果 add shadow -01
+        renderer.shadowMap.enabled=true;
+        renderer.shadowMap.type=THREE.BasicShadowMap;
+
+        document.body.appendChild(renderer.domElement);
+    }
+    var camera = null;
+    // 照像机设置
+    function initCamera(){
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.position.set(0,2,-5);
+        camera.lookAt(new THREE.Vector3(0,2,0))
+    }
+    var scene = null;
+    // 场景设置
+    function initScene(){
+         scene = new THREE.Scene();
+    }
+    // 灯光设置
+    function initLight(){
+        //add
+        //环境光
+        var ambientLight=new THREE.AmbientLight(0xffffff,0.5);
+        scene.add(ambientLight);
+        //点光
+        var pointLight=new THREE.PointLight(0xffffff,0.8,18);
+        pointLight.position.set(0,2,0);
+        // add shadow - 02
+        pointLight.castShadow=true;
+        pointLight.shadow.camera.near=0.1;
+        pointLight.shadow.camera.far=25;
+
+        scene.add(pointLight);
+    }
+    var mesh =null;
+    // 几何体（物体）设置
+    function initObject(){
+        var geometry = new THREE.CubeGeometry(1,1,1);
+        //var geometry = new THREE.BoxGeometry(1,1,1);
+
+        //var material = new THREE.MeshBasicMaterial({color: 0x00ff00});
+        //MeshBasicMaterial 对光照无反应 add shadow - 03
+        var material = new THREE.MeshPhongMaterial({color:0x00ff00,wireframe:false})
+        mesh = new THREE.Mesh(geometry, material);
+        // add shadow - 04
+        mesh.receiveShadow=true;
+        mesh.castShadow=true;
+        mesh.position.y+=1;
+
+        scene.add(mesh);
+
+        meshfloor=new THREE.Mesh(
+                new THREE.PlaneGeometry(20,20,10,10),
+                new THREE.MeshPhongMaterial({color:0xffffff,wireframe:false})
+        )
+        meshfloor.rotation.x -=Math.PI/2;
+        //add shadow -05
+        meshfloor.receiveShadow=true;
+        scene.add(meshfloor);
+
+        //======================================================
+        // 以下为创建箱子及添加纹理的核心代码
+        //加载贴图
+        var textureLoader=new THREE.TextureLoader();
+        boxTexture=textureLoader.load("Img/01.jpg");
+        boxNormalMap=textureLoader.load("Img/02.jpg");
+        boxBumpMap=textureLoader.load("Img/03.jpg");
+        // 创建箱子
+        box=new THREE.Mesh(
+                new THREE.BoxGeometry(3,3,3),
+                new THREE.MeshPhongMaterial({
+                    color:0xffffff,
+                    map:boxTexture,//颜色贴图。默认为null。纹理贴图颜色由漫反射颜色.color调节。
+                    normalMap:boxNormalMap,//用于创建法线贴图的纹理。RGB值会影响每个像素片段的曲面法线，并更改颜色照亮的方式。法线贴图不会改变曲面的实际形状，只会改变光照。
+                   bumpMap:boxBumpMap //用于创建凹凸贴图的纹理。黑色和白色值映射到与光照相关的感知深度。凹凸实际上不会影响对象的几何形状，只影响光照。如果定义了法线贴图，则将忽略该贴图。
+                })
+        )
+        box.position.set(2.5,3/2,2.5);
+        // 设置箱子阴影
+        box.receiveShadow=true;
+        box.castShadow=true;
+
+        scene.add(box)
+        //=============================================================
+    }
+    // 开始渲染
+    function render(){
+        //renderer.setClearColor("#ffffff")
+        requestAnimationFrame(render);
+        mesh.rotation.x += 0.1;
+        mesh.rotation.y += 0.1;
+        renderer.render(scene, camera);
+
+    }
+
+    function threeStart() {
+
+        initThree();     // 初始化渲染器
+        initCamera(); // 照像机设置
+        initScene();    // 场景设置
+        initLight();      // 灯光设置
+        initObject();    // 几何体（物体）设置
+        render();        // 开始渲染
+    }
+
+    function start(){
+        if (WEBGL.isWebGLAvailable()) {
+            // Initiate function or other initializations here
+            threeStart();
+        } else {
+            var warning = WEBGL.getWebGLErrorMessage();
+            document.getElementById('container').appendChild(warning);
+        }
+
+    }
+
+</script>
+<body onload="start();">
+<div id="container"></div>
+</body>
+</html>
